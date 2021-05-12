@@ -18,21 +18,19 @@ precedencegroup ExponentPrecedence {
 
 }
 
-
 // Declaration of exponent operators
 infix operator **: ExponentPrecedence
 infix operator **=: AssignmentPrecedence
-
 
 /// A fraction consisting of a `numerator` and a `denominator`
 public struct Fraction {
 
     // Private stored properties
-    private var _numerator:   Int
+    private var _numerator: Int
     private var _denominator: Int
 
     // Stored property accessors
-    public var numerator:   Int {
+    public var numerator: Int {
         get {
             return _numerator
         }
@@ -47,7 +45,7 @@ public struct Fraction {
             return _denominator
         }
         set {
-            precondition(denominator != 0, "Cannot divide by 0")
+            precondition(_denominator != 0, "Cannot divide by 0")
             _denominator = newValue
             _adjustFraction()
         }
@@ -97,10 +95,10 @@ public struct Fraction {
 
     // Computed properties
     public var decimal: Double {
-        return Double(numerator) / Double(denominator)
+        return Double(_numerator) / Double(_denominator)
     }
     public var isWholeNumber: Bool {
-        return denominator == 1 || numerator == 0
+        return _denominator == 1 || _numerator == 0
     }
 
     // Binary arithmetic operators
@@ -110,7 +108,7 @@ public struct Fraction {
         self._setSignum()
         self._simplifyFraction()
     }
-    private mutating func _simplifyFraction()  {
+    private mutating func _simplifyFraction() {
 
         guard self._numerator != 0 && abs(self._numerator) != 1 && self._denominator != 1 else { return }
 
@@ -157,19 +155,19 @@ public struct Fraction {
 extension Fraction: CustomStringConvertible {
     public var description: String {
 
-        guard denominator != 1 && numerator != 0 else { return "\(numerator)" }
+        guard _denominator != 1 && _numerator != 0 else { return "\(_numerator)" }
 
-        return "\(numerator)/\(denominator)"
+        return "\(_numerator)/\(_denominator)"
     }
 }
 extension Fraction: Equatable {
     public static func == (lhs: Fraction, rhs: Fraction) -> Bool {
-        return lhs.numerator == rhs.numerator && lhs.denominator == rhs.denominator
+        return lhs._numerator == rhs._numerator && lhs._denominator == rhs._denominator
     }
 }
 extension Fraction: Comparable {
     public static func < (lhs: Fraction, rhs: Fraction) -> Bool {
-        return Double(lhs.numerator) / Double(lhs.denominator) < Double(rhs.numerator) / Double(rhs.denominator)
+        return Double(lhs._numerator) / Double(lhs._denominator) < Double(rhs._numerator) / Double(rhs._denominator)
     }
 }
 extension Fraction: ExpressibleByIntegerLiteral {
@@ -198,7 +196,7 @@ extension Fraction: Numeric {
 
     public typealias Magnitude = Fraction
 
-    public init?<T>(exactly source: T) where T : BinaryInteger {
+    public init?<T>(exactly source: T) where T: BinaryInteger {
 
         guard let n = Int(exactly: source) else { return nil }
 
@@ -206,45 +204,45 @@ extension Fraction: Numeric {
     }
 
     // Binary arithmetic operators
-    public static func +  (lhs: Fraction, rhs: Fraction) -> Fraction {
+    public static func + (lhs: Fraction, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: (lhs.numerator * rhs.denominator) + (rhs.numerator * lhs.denominator),
-                        den: lhs.denominator * rhs.denominator)
+        return Fraction(num: (lhs._numerator * rhs._denominator) + (rhs._numerator * lhs._denominator),
+                        den: lhs._denominator * rhs._denominator)
     }
-    public static func -  (lhs: Fraction, rhs: Fraction) -> Fraction {
+    public static func - (lhs: Fraction, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: lhs.numerator * rhs.denominator - rhs.numerator * lhs.denominator,
-                        den: lhs.denominator * rhs.denominator)
+        return Fraction(num: lhs._numerator * rhs._denominator - rhs._numerator * lhs._denominator,
+                        den: lhs._denominator * rhs._denominator)
     }
-    public static func *  (lhs: Fraction, rhs: Fraction) -> Fraction {
+    public static func * (lhs: Fraction, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: lhs.numerator * rhs.numerator,
-                        den: lhs.denominator * rhs.denominator)
+        return Fraction(num: lhs._numerator * rhs._numerator,
+                        den: lhs._denominator * rhs._denominator)
     }
-    public static func /  (lhs: Fraction, rhs: Fraction) -> Fraction {
-        precondition(rhs.numerator != 0, "Cannot divide by 0")
+    public static func / (lhs: Fraction, rhs: Fraction) -> Fraction {
+        precondition(rhs._numerator != 0, "Cannot divide by 0")
 
-        return Fraction(num: lhs.numerator * rhs.denominator,
-                        den: lhs.denominator * rhs.numerator)
+        return Fraction(num: lhs._numerator * rhs._denominator,
+                        den: lhs._denominator * rhs._numerator)
     }
     public static func ** (lhs: Fraction, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: Int(pow(Double(lhs.numerator),   rhs.decimal)),
-                        den: Int(pow(Double(lhs.denominator), rhs.decimal)))
+        return Fraction(num: Int(pow(Double(lhs._numerator), rhs.decimal)),
+                        den: Int(pow(Double(lhs._denominator), rhs.decimal)))
 
     }
 
     // Compound assignment operators
-    public static func +=  (lhs: inout Fraction, rhs: Fraction) {
+    public static func += (lhs: inout Fraction, rhs: Fraction) {
         lhs = lhs + rhs
     }
-    public static func -=  (lhs: inout Fraction, rhs: Fraction) {
+    public static func -= (lhs: inout Fraction, rhs: Fraction) {
         lhs = lhs - rhs
     }
-    public static func *=  (lhs: inout Fraction, rhs: Fraction) {
+    public static func *= (lhs: inout Fraction, rhs: Fraction) {
         lhs = lhs * rhs
     }
-    public static func /=  (lhs: inout Fraction, rhs: Fraction) {
+    public static func /= (lhs: inout Fraction, rhs: Fraction) {
         lhs = lhs / rhs
     }
     public static func **= (lhs: inout Fraction, rhs: Fraction) {
@@ -254,7 +252,7 @@ extension Fraction: Numeric {
 }
 extension Fraction: SignedNumeric {
     public mutating func negate() {
-        self.numerator = -self.numerator
+        self._numerator = -self._numerator
     }
 }
 extension Fraction: Strideable {
@@ -276,28 +274,28 @@ extension Fraction {
     public static func == (lhs: Fraction, rhs: Double) -> Bool {
         return lhs.decimal == rhs
     }
-    public static func == (lhs: Fraction, rhs: Float)  -> Bool {
+    public static func == (lhs: Fraction, rhs: Float) -> Bool {
         return Float(lhs.decimal) == rhs
     }
-    public static func == (lhs: Fraction, rhs: Int)    -> Bool {
-        return (lhs.numerator == 0 && rhs == 0) || (lhs.denominator == 1 && lhs.numerator == rhs)
+    public static func == (lhs: Fraction, rhs: Int) -> Bool {
+        return (lhs._numerator == 0 && rhs == 0) || (lhs._denominator == 1 && lhs._numerator == rhs)
     }
 
     public static func == (lhs: Double, rhs: Fraction) -> Bool {
         return lhs == rhs.decimal
     }
-    public static func == (lhs: Float,  rhs: Fraction) -> Bool {
+    public static func == (lhs: Float, rhs: Fraction) -> Bool {
         return lhs == Float(rhs.decimal)
     }
-    public static func == (lhs: Int,    rhs: Fraction) -> Bool {
-        return (rhs.numerator == 0 && lhs == 0) || (rhs.denominator == 1 && rhs.numerator == lhs)
+    public static func == (lhs: Int, rhs: Fraction) -> Bool {
+        return (rhs._numerator == 0 && lhs == 0) || (rhs._denominator == 1 && rhs._numerator == lhs)
     }
 
     // Comparison operators with Double
     public static func <  (lhs: Fraction, rhs: Double) -> Bool {
         return lhs.decimal < rhs
     }
-    public static func >  (lhs: Fraction, rhs: Double) -> Bool {
+    public static func > (lhs: Fraction, rhs: Double) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Fraction, rhs: Double) -> Bool {
@@ -310,7 +308,7 @@ extension Fraction {
     public static func <  (lhs: Double, rhs: Fraction) -> Bool {
         return lhs < rhs.decimal
     }
-    public static func >  (lhs: Double, rhs: Fraction) -> Bool {
+    public static func > (lhs: Double, rhs: Fraction) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Double, rhs: Fraction) -> Bool {
@@ -324,7 +322,7 @@ extension Fraction {
     public static func <  (lhs: Fraction, rhs: Int) -> Bool {
         return lhs.decimal < Double(rhs)
     }
-    public static func >  (lhs: Fraction, rhs: Int) -> Bool {
+    public static func > (lhs: Fraction, rhs: Int) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Fraction, rhs: Int) -> Bool {
@@ -337,7 +335,7 @@ extension Fraction {
     public static func <  (lhs: Int, rhs: Fraction) -> Bool {
         return Double(lhs) < rhs.decimal
     }
-    public static func >  (lhs: Int, rhs: Fraction) -> Bool {
+    public static func > (lhs: Int, rhs: Fraction) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Int, rhs: Fraction) -> Bool {
@@ -351,7 +349,7 @@ extension Fraction {
     public static func <  (lhs: Fraction, rhs: Float) -> Bool {
         return Float(lhs.decimal) < rhs
     }
-    public static func >  (lhs: Fraction, rhs: Float) -> Bool {
+    public static func > (lhs: Fraction, rhs: Float) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Fraction, rhs: Float) -> Bool {
@@ -364,7 +362,7 @@ extension Fraction {
     public static func <  (lhs: Float, rhs: Fraction) -> Bool {
         return lhs < Float(rhs.decimal)
     }
-    public static func >  (lhs: Float, rhs: Fraction) -> Bool {
+    public static func > (lhs: Float, rhs: Fraction) -> Bool {
         return !(lhs <= rhs)
     }
     public static func <= (lhs: Float, rhs: Fraction) -> Bool {
@@ -375,71 +373,71 @@ extension Fraction {
     }
 
     // Arithmetic operators with Int
-    public static func +  (lhs: Fraction, rhs: Int) -> Fraction {
+    public static func + (lhs: Fraction, rhs: Int) -> Fraction {
 
-        return Fraction(num: lhs.numerator + (rhs * lhs.denominator),
-                        den: lhs.denominator)
-
-    }
-    public static func -  (lhs: Fraction, rhs: Int) -> Fraction {
-
-        return Fraction(num: lhs.numerator - rhs * lhs.denominator,
-                        den: lhs.denominator)
+        return Fraction(num: lhs._numerator + (rhs * lhs._denominator),
+                        den: lhs._denominator)
 
     }
-    public static func *  (lhs: Fraction, rhs: Int) -> Fraction {
+    public static func - (lhs: Fraction, rhs: Int) -> Fraction {
 
-        return Fraction(num: lhs.numerator * rhs,
-                        den: lhs.denominator)
+        return Fraction(num: lhs._numerator - rhs * lhs._denominator,
+                        den: lhs._denominator)
 
     }
-    public static func /  (lhs: Fraction, rhs: Int) -> Fraction {
+    public static func * (lhs: Fraction, rhs: Int) -> Fraction {
+
+        return Fraction(num: lhs._numerator * rhs,
+                        den: lhs._denominator)
+
+    }
+    public static func / (lhs: Fraction, rhs: Int) -> Fraction {
         precondition(rhs != 0, "Cannot divide by 0")
 
-        return Fraction(num: lhs.numerator,
-                        den: lhs.denominator * rhs)
+        return Fraction(num: lhs._numerator,
+                        den: lhs._denominator * rhs)
 
     }
     public static func ** (lhs: Fraction, rhs: Int) -> Fraction {
-        return Fraction(num: Int(pow(Double(lhs.numerator), Double(rhs))),
-                        den: Int(pow(Double(lhs.denominator), Double(rhs))))
+        return Fraction(num: Int(pow(Double(lhs._numerator), Double(rhs))),
+                        den: Int(pow(Double(lhs._denominator), Double(rhs))))
     }
 
-    public static func +  (lhs: Int, rhs: Fraction) -> Fraction {
+    public static func + (lhs: Int, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: lhs * rhs.denominator + rhs.numerator,
-                        den: rhs.denominator)
-
-    }
-    public static func -  (lhs: Int, rhs: Fraction) -> Fraction {
-
-        return Fraction(num: lhs * rhs.denominator - rhs.numerator,
-                        den: rhs.denominator)
+        return Fraction(num: lhs * rhs._denominator + rhs._numerator,
+                        den: rhs._denominator)
 
     }
-    public static func *  (lhs: Int, rhs: Fraction) -> Fraction {
+    public static func - (lhs: Int, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: lhs * rhs.numerator,
-                        den: rhs.denominator)
+        return Fraction(num: lhs * rhs._denominator - rhs._numerator,
+                        den: rhs._denominator)
 
     }
-    public static func /  (lhs: Int, rhs: Fraction) -> Fraction {
-        precondition(rhs.numerator != 0, "Cannot divide by 0")
+    public static func * (lhs: Int, rhs: Fraction) -> Fraction {
 
-        return Fraction(num: lhs * rhs.denominator,
-                        den: rhs.numerator)
+        return Fraction(num: lhs * rhs._numerator,
+                        den: rhs._denominator)
+
+    }
+    public static func / (lhs: Int, rhs: Fraction) -> Fraction {
+        precondition(rhs._numerator != 0, "Cannot divide by 0")
+
+        return Fraction(num: lhs * rhs._denominator,
+                        den: rhs._numerator)
     }
 
-    public static func +=  (lhs: inout Fraction, rhs: Int) {
+    public static func += (lhs: inout Fraction, rhs: Int) {
         lhs = lhs + rhs
     }
-    public static func -=  (lhs: inout Fraction, rhs: Int) {
+    public static func -= (lhs: inout Fraction, rhs: Int) {
         lhs = lhs - rhs
     }
-    public static func *=  (lhs: inout Fraction, rhs: Int) {
+    public static func *= (lhs: inout Fraction, rhs: Int) {
         lhs = lhs * rhs
     }
-    public static func /=  (lhs: inout Fraction, rhs: Int) {
+    public static func /= (lhs: inout Fraction, rhs: Int) {
         lhs = lhs / rhs
     }
     public static func **= (lhs: inout Fraction, rhs: Int) {
@@ -447,63 +445,63 @@ extension Fraction {
     }
 
     // Arithmetic operators with Double
-    public static func +  (lhs: Fraction, rhs: Double) -> Fraction {
+    public static func + (lhs: Fraction, rhs: Double) -> Fraction {
 
         return lhs + Fraction(rhs)
 
     }
-    public static func -  (lhs: Fraction, rhs: Double) -> Fraction {
+    public static func - (lhs: Fraction, rhs: Double) -> Fraction {
 
         return lhs - Fraction(rhs)
 
     }
-    public static func *  (lhs: Fraction, rhs: Double) -> Fraction {
+    public static func * (lhs: Fraction, rhs: Double) -> Fraction {
 
         return lhs * Fraction(rhs)
 
     }
-    public static func /  (lhs: Fraction, rhs: Double) -> Fraction {
+    public static func / (lhs: Fraction, rhs: Double) -> Fraction {
         precondition(rhs != 0.0, "Cannot divide by 0")
 
         return lhs / Fraction(rhs)
 
     }
     public static func ** (lhs: Fraction, rhs: Double) -> Fraction {
-        return Fraction(num: Int(pow(Double(lhs.numerator), rhs)),
-                        den: Int(pow(Double(lhs.denominator), rhs)))
+        return Fraction(num: Int(pow(Double(lhs._numerator), rhs)),
+                        den: Int(pow(Double(lhs._denominator), rhs)))
     }
 
-    public static func +  (lhs: Double, rhs: Fraction) -> Fraction {
+    public static func + (lhs: Double, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) + rhs
 
     }
-    public static func -  (lhs: Double, rhs: Fraction) -> Fraction {
+    public static func - (lhs: Double, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) - rhs
 
     }
-    public static func *  (lhs: Double, rhs: Fraction) -> Fraction {
+    public static func * (lhs: Double, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) * rhs
 
     }
-    public static func /  (lhs: Double, rhs: Fraction) -> Fraction {
-        precondition(rhs.numerator != 0, "Cannot divide by 0")
+    public static func / (lhs: Double, rhs: Fraction) -> Fraction {
+        precondition(rhs._numerator != 0, "Cannot divide by 0")
 
         return Fraction(lhs) / rhs
     }
 
-    public static func +=  (lhs: inout Fraction, rhs: Double) {
+    public static func += (lhs: inout Fraction, rhs: Double) {
         lhs = lhs + rhs
     }
-    public static func -=  (lhs: inout Fraction, rhs: Double) {
+    public static func -= (lhs: inout Fraction, rhs: Double) {
         lhs = lhs - rhs
     }
-    public static func *=  (lhs: inout Fraction, rhs: Double) {
+    public static func *= (lhs: inout Fraction, rhs: Double) {
         lhs = lhs * rhs
     }
-    public static func /=  (lhs: inout Fraction, rhs: Double) {
+    public static func /= (lhs: inout Fraction, rhs: Double) {
         lhs = lhs / rhs
     }
     public static func **= (lhs: inout Fraction, rhs: Double) {
@@ -511,69 +509,102 @@ extension Fraction {
     }
 
     // Arithmetic operators with Float
-    public static func +  (lhs: Fraction, rhs: Float) -> Fraction {
+    public static func + (lhs: Fraction, rhs: Float) -> Fraction {
 
         return lhs + Fraction(rhs)
 
     }
-    public static func -  (lhs: Fraction, rhs: Float) -> Fraction {
+    public static func - (lhs: Fraction, rhs: Float) -> Fraction {
 
         return lhs - Fraction(rhs)
 
     }
-    public static func *  (lhs: Fraction, rhs: Float) -> Fraction {
+    public static func * (lhs: Fraction, rhs: Float) -> Fraction {
 
         return lhs * Fraction(rhs)
 
     }
-    public static func /  (lhs: Fraction, rhs: Float) -> Fraction {
+    public static func / (lhs: Fraction, rhs: Float) -> Fraction {
         precondition(rhs != 0.0, "Cannot divide by 0")
 
         return lhs / Fraction(rhs)
 
     }
     public static func ** (lhs: Fraction, rhs: Float) -> Fraction {
-        return Fraction(num: Int(pow(Double(lhs.numerator), Double(rhs))),
-                        den: Int(pow(Double(lhs.denominator), Double(rhs))))
+        return Fraction(num: Int(pow(Double(lhs._numerator), Double(rhs))),
+                        den: Int(pow(Double(lhs._denominator), Double(rhs))))
     }
 
-    public static func +  (lhs: Float, rhs: Fraction) -> Fraction {
+    public static func + (lhs: Float, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) + rhs
 
     }
-    public static func -  (lhs: Float, rhs: Fraction) -> Fraction {
+    public static func - (lhs: Float, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) - rhs
 
     }
-    public static func *  (lhs: Float, rhs: Fraction) -> Fraction {
+    public static func * (lhs: Float, rhs: Fraction) -> Fraction {
 
         return Fraction(lhs) * rhs
 
     }
-    public static func /  (lhs: Float, rhs: Fraction) -> Fraction {
-        precondition(rhs.numerator != 0, "Cannot divide by 0")
+    public static func / (lhs: Float, rhs: Fraction) -> Fraction {
+        precondition(rhs._numerator != 0, "Cannot divide by 0")
 
         return Fraction(lhs) / rhs
     }
 
-    public static func +=  (lhs: inout Fraction, rhs: Float) {
+    public static func += (lhs: inout Fraction, rhs: Float) {
         lhs = lhs + rhs
     }
-    public static func -=  (lhs: inout Fraction, rhs: Float) {
+    public static func -= (lhs: inout Fraction, rhs: Float) {
         lhs = lhs - rhs
     }
-    public static func *=  (lhs: inout Fraction, rhs: Float) {
+    public static func *= (lhs: inout Fraction, rhs: Float) {
         lhs = lhs * rhs
     }
-    public static func /=  (lhs: inout Fraction, rhs: Float) {
+    public static func /= (lhs: inout Fraction, rhs: Float) {
         lhs = lhs / rhs
     }
     public static func **= (lhs: inout Fraction, rhs: Float) {
         return lhs = lhs ** rhs
     }
+}
 
+extension Fraction {
+    /// The reciprocal of the fraction.
+    public var reciprocal: Fraction {
+        get {
+            return Fraction(num: denominator, den: numerator)
+        }
+    }
+
+    /// `true` iff `self` is neither infinite nor NaN
+    public var isFinite: Bool {
+        return denominator != 0
+    }
+
+    /// `true` iff the numerator is zero and the denominator is nonzero
+    public var isInfinite: Bool {
+        return denominator == 0 && numerator != 0
+    }
+
+    /// `true` iff both the numerator and the denominator are zero
+    public var isNaN: Bool {
+        return denominator == 0 && numerator == 0
+    }
+
+    /// The positive infinity.
+    public static var infinity: Fraction {
+        return Fraction(num: 1, den: 0)
+    }
+
+    /// Not a number.
+    public static var NaN: Fraction {
+        return Fraction(num: 0, den: 0)
+    }
 }
 
 // Extensions of numeric types to integrate Fraction
@@ -587,16 +618,16 @@ public extension Double {
         self = Double(fraction.numerator) / Double(fraction.denominator)
     }
 
-    static func +=  (lhs: inout Double, rhs: Fraction) {
+    static func += (lhs: inout Double, rhs: Fraction) {
         lhs = lhs + rhs.decimal
     }
-    static func -=  (lhs: inout Double, rhs: Fraction) {
+    static func -= (lhs: inout Double, rhs: Fraction) {
         lhs = lhs - rhs.decimal
     }
-    static func *=  (lhs: inout Double, rhs: Fraction) {
+    static func *= (lhs: inout Double, rhs: Fraction) {
         lhs = lhs * rhs.decimal
     }
-    static func /=  (lhs: inout Double, rhs: Fraction) {
+    static func /= (lhs: inout Double, rhs: Fraction) {
         lhs = lhs / rhs.decimal
     }
 
@@ -606,5 +637,3 @@ public extension Float {
         self = Float(fraction.numerator) / Float(fraction.denominator)
     }
 }
-
-
