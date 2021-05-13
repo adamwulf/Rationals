@@ -125,4 +125,24 @@ final class RationalsTests: XCTestCase {
         XCTAssertFalse(foo.isNaN)
         XCTAssertTrue(foo.isWholeNumber)
     }
+
+    func testDistance() {
+        var start: Fraction = 1 / 2
+        var end: Fraction = 2 / 3
+
+        XCTAssertEqual(start.distance(to: end), 1 / 6)
+        XCTAssertEqual(end.distance(to: start), -1 / 6)
+
+        start = 1 / 0
+        end = 2 / 3
+
+        XCTAssertEqual(start.distance(to: end), -Fraction.infinity)
+        XCTAssertEqual(end.distance(to: start), Fraction.infinity)
+
+        start = 0 / 0
+        end = 2 / 3
+
+        XCTAssertEqual(start.distance(to: end), Fraction.NaN)
+        XCTAssertEqual(end.distance(to: start), Fraction.NaN)
+    }
 }
