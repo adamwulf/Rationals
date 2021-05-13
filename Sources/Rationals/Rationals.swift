@@ -21,6 +21,7 @@ public struct Fraction {
     public static let max = Int.max
     public static let min = Int.min
     public static let zero = Fraction(num: 0, den: 1)
+    public static let one = Fraction(num: 1, den: 1)
     public static let infinity = Fraction(num: 1, den: 0)
     public static let NaN = Fraction(num: 0, den: 0)
 
