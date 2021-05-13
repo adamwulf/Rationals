@@ -192,11 +192,15 @@ extension Fraction: Strideable {
     public typealias Stride = Fraction
 
     public func distance(to other: Fraction) -> Fraction {
-        return other - self
+        return other.advanced(by: -self)
     }
 
     public func advanced(by n: Fraction) -> Fraction {
-        return self + n
+        guard isFinite || n.isFinite else { return Fraction.NaN }
+        guard n.isFinite else { return n }
+        guard isFinite else { return self }
+        let (selfNumerator, nNumerator, commonDenominator) = Fraction.commonDenominator(self, n)
+        return Fraction(selfNumerator + nNumerator, commonDenominator)
     }
 }
 
