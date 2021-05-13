@@ -8,20 +8,31 @@
 
 import Foundation
 
+func gcd(_ lhs: Int, _ rhs: Int) -> Int {
+    var lhs = lhs
+    var rhs = rhs
+    while rhs != 0 { (lhs, rhs) = (rhs, lhs % rhs) }
+    return lhs
+}
+
+func lcm(_ lhs: Int, _ rhs: Int) -> Int {
+    return lhs * rhs / gcd(lhs, rhs)
+}
+
+func reduce(numerator: Int, denominator: Int) -> (numerator: Int, denominator: Int) {
+    var divisor = gcd(numerator, denominator)
+    if divisor < 0 { divisor *= -1 }
+    guard divisor != 0 else { return (numerator: numerator, denominator: 0) }
+    return (numerator: numerator / divisor, denominator: denominator / divisor)
+}
+
 /// A fraction consisting of a `numerator` and a `denominator`
 public struct Fraction {
     // MARK: - Properties
 
-    public private(set) var numerator: Int {
-        didSet {
-            adjustFraction()
-        }
-    }
-    public private(set) var denominator: Int {
-        didSet {
-            adjustFraction()
-        }
-    }
+    public private(set) var numerator: Int
+    public private(set) var denominator: Int
+    public private(set) var signum: Int = 1
 
     // MARK: - Constants
 
@@ -31,15 +42,39 @@ public struct Fraction {
     public static let infinity = Fraction(num: 1, den: 0)
     public static let NaN = Fraction(num: 0, den: 0)
 
-    public private(set) var signum: Int = 1
-
     // MARK: - Initializers
 
     public init(num: Int, den: Int) {
-        self.numerator = num
-        self.denominator = den
+        var result = reduce(numerator: num, denominator: den)
 
-        adjustFraction()
+        // set the sign, also ensure that if negative, the numerator is negative and denominator is positive.
+        // if the fraction is zero, then sign is zero.
+        if result.numerator == 0 {
+            signum = 0
+        } else {
+            switch result.denominator.signum() + result.numerator.signum() {
+            case -2:
+                result.denominator = abs(result.denominator)
+                result.numerator = abs(result.numerator)
+                signum = 1
+            case -1:
+                signum = -1
+            case 0:
+                signum = -1
+                if result.numerator.signum() == 1 {
+                    result.numerator   *= -1
+                    result.denominator *= -1
+                }
+            case 1:
+                signum = 1
+            case 2:
+                signum = 1
+            default: break
+            }
+        }
+
+        numerator = result.numerator
+        denominator = result.denominator
     }
 
     public init(_ numerator: Int, _ denominator: Int) {
@@ -69,48 +104,6 @@ public struct Fraction {
     public init(_ n: Float) {
         self.init(Double(n))
     }
-
-    // MARK: - Private
-
-    private mutating func adjustFraction() {
-        self.setSignum()
-        self.simplifyFraction()
-    }
-
-    private mutating func simplifyFraction() {
-        guard self.numerator != 0 && abs(self.numerator) != 1 && self.denominator != 1 else { return }
-
-        for n in (2...Swift.min(abs(self.numerator), abs(self.denominator))).reversed() {
-            if self.numerator % n == 0 && self.denominator % n == 0 {
-                self.numerator /= n
-                self.denominator /= n
-                return
-            }
-        }
-    }
-
-    private mutating func setSignum() {
-        guard numerator != 0 else {
-            signum = 0
-            return
-        }
-
-        switch denominator.signum() + numerator.signum() {
-        case -2:
-            denominator = abs(denominator)
-            numerator = abs(numerator)
-            signum = 1
-        case 0:
-            signum = -1
-            if numerator.signum() == 1 {
-                numerator   *= -1
-                denominator *= -1
-            }
-        case 2:
-            signum = 1
-        default: break
-        }
-    }
 }
 
 // MARK: - Computed Properties
@@ -123,7 +116,7 @@ public extension Fraction {
     }
 
     var isWholeNumber: Bool {
-        return denominator == 1 || numerator == 0
+        return !isNaN && (denominator == 1 || numerator == 0)
     }
 
     /// `true` iff `self` is neither infinite nor NaN
@@ -173,7 +166,6 @@ extension Fraction: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: Int) {
         self.init(num: value, den: 1)
     }
-
 }
 
 // MARK: - ExpressibleByFloatLiteral
@@ -238,7 +230,8 @@ extension Fraction: Numeric {
 // MARK: - SignedNumeric
 extension Fraction: SignedNumeric {
     public mutating func negate() {
-        self.numerator = -self.numerator
+        numerator = -numerator
+        signum = -signum
     }
 }
 
@@ -309,23 +302,6 @@ public extension Int {
     static func / (lhs: Fraction, rhs: Int) -> Fraction {
         return Fraction(num: lhs.numerator,
                         den: lhs.denominator * rhs)
-    }
-
-    static func + (lhs: Int, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs * rhs.denominator + rhs.numerator,
-                        den: rhs.denominator)
-    }
-    static func - (lhs: Int, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs * rhs.denominator - rhs.numerator,
-                        den: rhs.denominator)
-    }
-    static func * (lhs: Int, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs * rhs.numerator,
-                        den: rhs.denominator)
-    }
-    static func / (lhs: Int, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs * rhs.denominator,
-                        den: rhs.numerator)
     }
 
     static func += (lhs: inout Fraction, rhs: Int) {
@@ -407,19 +383,6 @@ public extension Double {
         return lhs / Fraction(rhs)
     }
 
-    static func + (lhs: Double, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) + rhs
-    }
-    static func - (lhs: Double, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) - rhs
-    }
-    static func * (lhs: Double, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) * rhs
-    }
-    static func / (lhs: Double, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) / rhs
-    }
-
     static func += (lhs: inout Fraction, rhs: Double) {
         lhs = lhs + rhs
     }
@@ -487,18 +450,6 @@ public extension Float {
         return lhs / Fraction(rhs)
     }
 
-    static func + (lhs: Float, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) + rhs
-    }
-    static func - (lhs: Float, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) - rhs
-    }
-    static func * (lhs: Float, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) * rhs
-    }
-    static func / (lhs: Float, rhs: Fraction) -> Fraction {
-        return Fraction(lhs) / rhs
-    }
     static func += (lhs: inout Fraction, rhs: Float) {
         lhs = lhs + rhs
     }
