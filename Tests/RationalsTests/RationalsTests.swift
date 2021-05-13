@@ -145,4 +145,44 @@ final class RationalsTests: XCTestCase {
         XCTAssertEqual(start.distance(to: end), Fraction.NaN)
         XCTAssertEqual(end.distance(to: start), Fraction.NaN)
     }
+
+    func testAverage() {
+        var start: Fraction = 1 / 2
+        var end: Fraction = 2 / 3
+
+        XCTAssertEqual((start + end) / 2, 7 / 12)
+
+        start = 1.0 / 2.0
+        end = 2.0 / 3.0
+
+        XCTAssertEqual((start + end) / 2, 7 / 12)
+    }
+
+    func testEqual() {
+        XCTAssertFalse(Fraction(1, 3) == Float(1.0 / 3.0))
+        XCTAssertFalse(Float(1.0 / 3.0) == Fraction(1, 3))
+
+        XCTAssertFalse(Fraction(1, 3) == Double(1.0 / 3.0))
+        XCTAssertFalse(Double(1.0 / 3.0) == Fraction(1, 3))
+    }
+
+    func testLargeNumbers() {
+        let third: Fraction = Fraction(1.0 / 3.0)
+        let thirteenth: Fraction = Fraction(7.0 / 13.0)
+
+        XCTAssertEqual(third, 3333333333333333 / 10000000000000000)
+        XCTAssertEqual(thirteenth, 673076923076923 / 1250000000000000)
+        XCTAssertEqual(third + thirteenth, 8717948717948717 / 10000000000000000)
+        XCTAssertEqual(third - thirteenth, -2051282051282051 / 10000000000000000)
+    }
+
+    func testOverflow() {
+        let third: Fraction = Fraction(1.0 / 3.0)
+        let thirteenth: Fraction = Fraction(7.0 / 13.0)
+
+        XCTAssertEqual(third, 3333333333333333 / 10000000000000000)
+        XCTAssertEqual(thirteenth, 673076923076923 / 1250000000000000)
+        XCTAssertEqual(third + thirteenth, 8717948717948717 / 10000000000000000)
+        XCTAssertEqual(third - thirteenth, -2051282051282051 / 10000000000000000)
+    }
 }

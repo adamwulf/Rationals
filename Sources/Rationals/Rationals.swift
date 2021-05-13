@@ -16,7 +16,7 @@ func gcd(_ lhs: Int, _ rhs: Int) -> Int {
 }
 
 func lcm(_ lhs: Int, _ rhs: Int) -> Int {
-    return lhs * rhs / gcd(lhs, rhs)
+    return lhs / gcd(lhs, rhs) * rhs
 }
 
 func reduce(numerator: Int, denominator: Int) -> (numerator: Int, denominator: Int) {
@@ -193,13 +193,23 @@ extension Fraction: Numeric {
 
     // Binary arithmetic operators
     public static func + (lhs: Fraction, rhs: Fraction) -> Fraction {
-        return Fraction(num: (lhs.numerator * rhs.denominator) + (rhs.numerator * lhs.denominator),
-                        den: lhs.denominator * rhs.denominator)
+        let lcm = lcm(lhs.denominator, rhs.denominator)
+        let lfact = lcm / lhs.denominator
+        let rfact = lcm / rhs.denominator
+
+        return Fraction(num: (lhs.numerator * lfact) + (rhs.numerator * rfact),
+                        den: lcm)
     }
 
     public static func - (lhs: Fraction, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs.numerator * rhs.denominator - rhs.numerator * lhs.denominator,
-                        den: lhs.denominator * rhs.denominator)
+        guard lhs.signum != rhs.signum || lhs.isFinite || rhs.isFinite else { return Fraction.NaN }
+        guard lhs.isFinite else { return lhs }
+        guard rhs.isFinite else { return -rhs }
+        let lcm = lcm(lhs.denominator, rhs.denominator)
+        let lfact = lcm / lhs.denominator
+        let rfact = lcm / rhs.denominator
+        return Fraction(num: (lhs.numerator * lfact) - (rhs.numerator * rfact),
+                        den: lcm)
     }
 
     public static func * (lhs: Fraction, rhs: Fraction) -> Fraction {
@@ -325,10 +335,10 @@ public extension Double {
     }
 
     static func == (lhs: Fraction, rhs: Double) -> Bool {
-        return Double(lhs) == rhs
+        return lhs == Fraction(rhs)
     }
     static func == (lhs: Double, rhs: Fraction) -> Bool {
-        return lhs == Double(rhs)
+        return Fraction(lhs) == rhs
     }
 
     static func < (lhs: Fraction, rhs: Double) -> Bool {
@@ -404,10 +414,10 @@ public extension Float {
     }
 
     static func == (lhs: Fraction, rhs: Float) -> Bool {
-        return Float(lhs) == rhs
+        return lhs == Fraction(rhs)
     }
     static func == (lhs: Float, rhs: Fraction) -> Bool {
-        return lhs == Float(rhs)
+        return Fraction(lhs) == rhs
     }
 
     static func < (lhs: Fraction, rhs: Float) -> Bool {
