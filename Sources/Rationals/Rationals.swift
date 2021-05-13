@@ -8,24 +8,6 @@
 
 import Foundation
 
-func gcd(_ lhs: Int, _ rhs: Int) -> Int {
-    var lhs = lhs
-    var rhs = rhs
-    while rhs != 0 { (lhs, rhs) = (rhs, lhs % rhs) }
-    return lhs
-}
-
-func lcm(_ lhs: Int, _ rhs: Int) -> Int {
-    return lhs / gcd(lhs, rhs) * rhs
-}
-
-func reduce(numerator: Int, denominator: Int) -> (numerator: Int, denominator: Int) {
-    var divisor = gcd(numerator, denominator)
-    if divisor < 0 { divisor *= -1 }
-    guard divisor != 0 else { return (numerator: numerator, denominator: 0) }
-    return (numerator: numerator / divisor, denominator: denominator / divisor)
-}
-
 /// A fraction consisting of a `numerator` and a `denominator`
 public struct Fraction {
     // MARK: - Properties
@@ -45,7 +27,7 @@ public struct Fraction {
     // MARK: - Initializers
 
     public init(num: Int, den: Int) {
-        var result = reduce(numerator: num, denominator: den)
+        var result = Self.reduce(numerator: num, denominator: den)
 
         // set the sign, also ensure that if negative, the numerator is negative and denominator is positive.
         // if the fraction is zero, then sign is zero.
@@ -103,6 +85,34 @@ public struct Fraction {
 
     public init(_ n: Float) {
         self.init(Double(n))
+    }
+}
+
+extension Fraction {
+    static func gcd(_ lhs: Int, _ rhs: Int) -> Int {
+        var lhs = lhs
+        var rhs = rhs
+        while rhs != 0 { (lhs, rhs) = (rhs, lhs % rhs) }
+        return lhs
+    }
+
+    static func lcm(_ lhs: Int, _ rhs: Int) -> Int {
+        return lhs / gcd(lhs, rhs) * rhs
+    }
+
+    static func reduce(numerator: Int, denominator: Int) -> (numerator: Int, denominator: Int) {
+        var divisor = gcd(numerator, denominator)
+        if divisor < 0 { divisor *= -1 }
+        guard divisor != 0 else { return (numerator: numerator, denominator: 0) }
+        return (numerator: numerator / divisor, denominator: denominator / divisor)
+    }
+
+    static func commonDenominator(_ lhs: Fraction, _ rhs: Fraction) -> (lhsNumerator: Int, rhsNumberator: Int, denominator: Int) {
+        let denominator = lcm(lhs.denominator, rhs.denominator)
+        let lhsNumerator = lhs.numerator * (denominator / lhs.denominator)
+        let rhsNumerator = rhs.numerator * (denominator / rhs.denominator)
+
+        return (lhsNumerator, rhsNumerator, denominator)
     }
 }
 

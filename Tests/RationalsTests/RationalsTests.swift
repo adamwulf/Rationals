@@ -3,40 +3,54 @@ import XCTest
 
 final class RationalsTests: XCTestCase {
     func testGCD() {
-        XCTAssertEqual(gcd(6, 10), 2)
-        XCTAssertEqual(gcd(13, 10), 1)
-        XCTAssertEqual(gcd(7, 10), 1)
-        XCTAssertEqual(gcd(21, 91), 7)
+        XCTAssertEqual(Fraction.gcd(6, 10), 2)
+        XCTAssertEqual(Fraction.gcd(13, 10), 1)
+        XCTAssertEqual(Fraction.gcd(7, 10), 1)
+        XCTAssertEqual(Fraction.gcd(21, 91), 7)
     }
 
     func testLCM() {
-        XCTAssertEqual(lcm(5, 10), 10)
-        XCTAssertEqual(lcm(6, 10), 30)
-        XCTAssertEqual(lcm(13, 10), 130)
-        XCTAssertEqual(lcm(7, 10), 70)
-        XCTAssertEqual(lcm(21, 91), 273)
+        XCTAssertEqual(Fraction.lcm(5, 10), 10)
+        XCTAssertEqual(Fraction.lcm(6, 10), 30)
+        XCTAssertEqual(Fraction.lcm(13, 10), 130)
+        XCTAssertEqual(Fraction.lcm(7, 10), 70)
+        XCTAssertEqual(Fraction.lcm(21, 91), 273)
     }
 
     func testReduce() {
-        XCTAssertEqual(reduce(numerator: 10, denominator: 0).numerator, 1)
-        XCTAssertEqual(reduce(numerator: 10, denominator: 0).denominator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 10, denominator: 0).numerator, 1)
+        XCTAssertEqual(Fraction.reduce(numerator: 10, denominator: 0).denominator, 0)
 
-        XCTAssertEqual(reduce(numerator: 0, denominator: 10).numerator, 0)
-        XCTAssertEqual(reduce(numerator: 0, denominator: 10).denominator, 1)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 10).numerator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 10).denominator, 1)
 
-        XCTAssertEqual(reduce(numerator: 10, denominator: 10).numerator, 1)
-        XCTAssertEqual(reduce(numerator: 10, denominator: 10).denominator, 1)
+        XCTAssertEqual(Fraction.reduce(numerator: 10, denominator: 10).numerator, 1)
+        XCTAssertEqual(Fraction.reduce(numerator: 10, denominator: 10).denominator, 1)
 
-        XCTAssertEqual(reduce(numerator: 0, denominator: 0).numerator, 0)
-        XCTAssertEqual(reduce(numerator: 0, denominator: 0).denominator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 0).numerator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 0).denominator, 0)
 
-        XCTAssertEqual(reduce(numerator: 0, denominator: 0).numerator, 0)
-        XCTAssertEqual(reduce(numerator: 0, denominator: 0).denominator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 0).numerator, 0)
+        XCTAssertEqual(Fraction.reduce(numerator: 0, denominator: 0).denominator, 0)
 
-        XCTAssertEqual(reduce(numerator: 123, denominator: 72).numerator, 41)
-        XCTAssertEqual(reduce(numerator: 123, denominator: 72).denominator, 24)
+        XCTAssertEqual(Fraction.reduce(numerator: 123, denominator: 72).numerator, 41)
+        XCTAssertEqual(Fraction.reduce(numerator: 123, denominator: 72).denominator, 24)
 
         XCTAssertEqual(Fraction(123, 72), Fraction(41, 24))
+    }
+
+    func testCommonDenominator() {
+        var result = Fraction.commonDenominator(1 / 2, 1 / 3)
+
+        XCTAssertEqual(result.lhsNumerator, 3)
+        XCTAssertEqual(result.rhsNumberator, 2)
+        XCTAssertEqual(result.denominator, 6)
+
+        result = Fraction.commonDenominator(1 / 7, 1 / 13)
+
+        XCTAssertEqual(result.lhsNumerator, 13)
+        XCTAssertEqual(result.rhsNumberator, 7)
+        XCTAssertEqual(result.denominator, 91)
     }
 
     func testSign() {
