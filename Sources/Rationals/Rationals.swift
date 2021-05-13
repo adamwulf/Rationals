@@ -177,6 +177,19 @@ extension Fraction: ExpressibleByFloatLiteral {
     }
 }
 
+// MARK: - Strideable
+extension Fraction: Strideable {
+    public typealias Stride = Fraction
+
+    public func distance(to other: Fraction) -> Fraction {
+        return other - self
+    }
+
+    public func advanced(by n: Fraction) -> Fraction {
+        return self + n
+    }
+}
+
 // MARK: - Numeric
 extension Fraction: Numeric {
     public var magnitude: Fraction {
@@ -242,19 +255,6 @@ extension Fraction: SignedNumeric {
     public mutating func negate() {
         numerator = -numerator
         signum = -signum
-    }
-}
-
-// MARK: - Strideable
-extension Fraction: Strideable {
-    public typealias Stride = Fraction
-
-    public func distance(to other: Fraction) -> Fraction {
-        return other - self
-    }
-
-    public func advanced(by n: Fraction) -> Fraction {
-        return self + n
     }
 }
 
