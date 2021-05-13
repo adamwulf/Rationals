@@ -59,10 +59,6 @@ public struct Fraction {
         denominator = result.denominator
     }
 
-    public init(_ numerator: Int, _ denominator: Int) {
-        self.init(num: numerator, den: denominator)
-    }
-
     public init(_ n: Int) {
         self.init(num: n, den: 1)
     }
@@ -200,7 +196,7 @@ extension Fraction: Strideable {
         guard n.isFinite else { return n }
         guard isFinite else { return self }
         let (selfNumerator, nNumerator, commonDenominator) = Fraction.commonDenominator(self, n)
-        return Fraction(selfNumerator + nNumerator, commonDenominator)
+        return Fraction(num: selfNumerator + nNumerator, den: commonDenominator)
     }
 }
 
@@ -220,23 +216,11 @@ extension Fraction: Numeric {
 
     // Binary arithmetic operators
     public static func + (lhs: Fraction, rhs: Fraction) -> Fraction {
-        let lcm = lcm(lhs.denominator, rhs.denominator)
-        let lfact = lcm / lhs.denominator
-        let rfact = lcm / rhs.denominator
-
-        return Fraction(num: (lhs.numerator * lfact) + (rhs.numerator * rfact),
-                        den: lcm)
+        return lhs.advanced(by: rhs)
     }
 
     public static func - (lhs: Fraction, rhs: Fraction) -> Fraction {
-        guard lhs.signum != rhs.signum || lhs.isFinite || rhs.isFinite else { return Fraction.NaN }
-        guard lhs.isFinite else { return lhs }
-        guard rhs.isFinite else { return -rhs }
-        let lcm = lcm(lhs.denominator, rhs.denominator)
-        let lfact = lcm / lhs.denominator
-        let rfact = lcm / rhs.denominator
-        return Fraction(num: (lhs.numerator * lfact) - (rhs.numerator * rfact),
-                        den: lcm)
+        return lhs.advanced(by: -rhs)
     }
 
     public static func * (lhs: Fraction, rhs: Fraction) -> Fraction {
@@ -245,8 +229,7 @@ extension Fraction: Numeric {
     }
 
     public static func / (lhs: Fraction, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs.numerator * rhs.denominator,
-                        den: lhs.denominator * rhs.numerator)
+        return lhs * rhs.reciprocal
     }
 
     // Compound assignment operators

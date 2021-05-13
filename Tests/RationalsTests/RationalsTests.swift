@@ -36,7 +36,7 @@ final class RationalsTests: XCTestCase {
         XCTAssertEqual(Fraction.reduce(numerator: 123, denominator: 72).numerator, 41)
         XCTAssertEqual(Fraction.reduce(numerator: 123, denominator: 72).denominator, 24)
 
-        XCTAssertEqual(Fraction(123, 72), Fraction(41, 24))
+        XCTAssertEqual(Fraction(num: 123, den: 72), Fraction(num: 41, den: 24))
     }
 
     func testCommonDenominator() {
@@ -173,11 +173,11 @@ final class RationalsTests: XCTestCase {
     }
 
     func testEqual() {
-        XCTAssertFalse(Fraction(1, 3) == Float(1.0 / 3.0))
-        XCTAssertFalse(Float(1.0 / 3.0) == Fraction(1, 3))
+        XCTAssertFalse(Fraction(num: 1, den: 3) == Float(1.0 / 3.0))
+        XCTAssertFalse(Float(1.0 / 3.0) == Fraction(num: 1, den: 3))
 
-        XCTAssertFalse(Fraction(1, 3) == Double(1.0 / 3.0))
-        XCTAssertFalse(Double(1.0 / 3.0) == Fraction(1, 3))
+        XCTAssertFalse(Fraction(num: 1, den: 3) == Double(1.0 / 3.0))
+        XCTAssertFalse(Double(1.0 / 3.0) == Fraction(num: 1, den: 3))
     }
 
     func testLargeNumbers() {
