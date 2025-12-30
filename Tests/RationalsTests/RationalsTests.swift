@@ -199,4 +199,24 @@ final class RationalsTests: XCTestCase {
         XCTAssertEqual(third + thirteenth, 8717948717948717 / 10000000000000000)
         XCTAssertEqual(third - thirteenth, -2051282051282051 / 10000000000000000)
     }
+
+    func testNegativeWholeNumberFromDouble() {
+        // Test that Fraction(-1.0) correctly creates -1, not 1
+        XCTAssertEqual(Fraction(-1.0), Fraction(-1))
+        XCTAssertEqual(Fraction(-1.0).numerator, -1)
+        XCTAssertEqual(Fraction(-1.0).denominator, 1)
+
+        // Test that 1 + (-1) = 0
+        XCTAssertEqual(Fraction(1.0) + Fraction(-1.0), Fraction(0))
+
+        // Test other negative whole numbers
+        XCTAssertEqual(Fraction(-2.0), Fraction(-2))
+        XCTAssertEqual(Fraction(-5.0), Fraction(-5))
+        XCTAssertEqual(Fraction(-100.0), Fraction(-100))
+
+        // Positive whole numbers should still work
+        XCTAssertEqual(Fraction(1.0), Fraction(1))
+        XCTAssertEqual(Fraction(5.0), Fraction(5))
+        XCTAssertEqual(Fraction(0.0), Fraction(0))
+    }
 }
