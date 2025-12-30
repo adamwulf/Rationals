@@ -71,7 +71,7 @@ public struct Fraction {
         let sign = n < 0.0 ? -1 : 1
 
         guard decimal.post != 0 else {
-            self.init(num: sign * decimal.pre, den: 1)
+            self.init(num: decimal.pre, den: 1)
             return
         }
 
