@@ -94,6 +94,12 @@ final class RationalsTests: XCTestCase {
         XCTAssertEqual(foo.numerator, 0)
         XCTAssertEqual(foo.denominator, 0)
         XCTAssertEqual(foo.signum, 0)
+
+        foo = -7 / -3
+
+        XCTAssertEqual(foo.numerator, 7)
+        XCTAssertEqual(foo.denominator, 3)
+        XCTAssertEqual(foo.signum, 1)
     }
 
     func testIs() {
