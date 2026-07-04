@@ -64,23 +64,50 @@ public struct Fraction {
         self.init(num: n, den: 1)
     }
 
-    /// Creates a fraction from the plain decimal string form of `n`.
+    /// Creates a fraction from `n`. This initializer is **total**: every
+    /// `Double` maps to a `Fraction` and it never traps.
     ///
-    /// IMPORTANT: this initializer (and `exactDecimal`) must never compare `n`
-    /// against a numeric literal (e.g. `n < 0.0`). With the heterogeneous
-    /// `< (Double, Fraction)` operators in scope, some Swift compiler versions
-    /// resolve such comparisons to the Fraction overload, which converts the
-    /// literal via this very initializer — infinite recursion and a
-    /// stack-overflow crash in release builds.
+    /// - `NaN` maps to `Fraction.NaN`, `±infinity` to `±Fraction.infinity`.
+    /// - Values whose textual form is plain decimal (e.g. `"123.456"`) are
+    ///   converted exactly via `exactDecimal`.
+    /// - Any other finite value (scientific-notation magnitudes like `1e-13`
+    ///   or `1e20`, or one whose exact digits overflow `Int`) is converted to
+    ///   the closest rational with a bounded denominator via `approximate`.
+    ///
+    /// IMPORTANT: this initializer (and every helper it calls) must never
+    /// compare `n` against a numeric literal (e.g. `n < 0.0`). With the
+    /// heterogeneous `< (Double, Fraction)` operators in scope, some Swift
+    /// compiler versions resolve such comparisons to the `Fraction` overload,
+    /// which converts the literal via this very initializer — infinite
+    /// recursion and a stack-overflow crash in release builds. Derive signs
+    /// from `n.sign` and only ever compare `Double` *variables* to each other.
     public init(_ n: Double) {
-        guard let fraction = Self.exactDecimal(n) else {
-            preconditionFailure("Fraction(Double) requires a plain finite decimal value, got \(n)")
+        guard !n.isNaN else { self = Fraction.NaN; return }
+        let sign = n.sign == .minus ? -1 : 1
+        guard !n.isInfinite else { self = Fraction(num: sign, den: 0); return }
+        if let fraction = Self.exactDecimal(n) {
+            self = fraction
+            return
         }
-        self = fraction
+        self = Self.approximate(n)
     }
 
     public init(_ n: Float) {
         self.init(Double(n))
+    }
+
+    /// Creates a fraction that is *exactly* equal to `n`, or returns `nil` when
+    /// `n` has no exact plain-decimal representation (scientific-notation
+    /// magnitudes like `1e-13`, non-finite values, or exact digits that
+    /// overflow `Int`).
+    ///
+    /// This mirrors the standard library's `Int(exactly:)` convention: it is
+    /// the honest API for callers that require exactness and want to handle the
+    /// inexact case themselves, as opposed to the total, possibly-lossy
+    /// `init(_ n: Double)`.
+    public init?(exactly n: Double) {
+        guard let fraction = Self.exactDecimal(n) else { return nil }
+        self = fraction
     }
 }
 
@@ -112,11 +139,12 @@ extension Fraction {
     }
 
     /// Parses the plain decimal string form of `n` (e.g. "123.456") into an
-    /// exact fraction. Returns nil for values whose description is not plain
-    /// decimal (scientific notation like "1e-13", "inf", "nan") or whose
-    /// digits overflow Int. Unlike `init(_ n: Double)`, this never traps, so
-    /// it is safe for the mixed-type `==` operators, which the compiler may
-    /// substitute into plain Double comparisons in client code.
+    /// *exact* fraction. Returns nil for values whose description is not plain
+    /// decimal (scientific notation like "1e-13", "inf", "nan") or whose digits
+    /// overflow Int. This is the exact, non-approximating path shared by the
+    /// public `init?(exactly:)`, the fast path of the total `init(_:)`, and the
+    /// mixed-type `==` operators (where an unrepresentable value means "not
+    /// equal", never an approximate comparison). It never traps.
     static func exactDecimal(_ n: Double) -> Fraction? {
         let nArr = "\(n)".split(separator: ".")
         guard nArr.count == 2,
@@ -126,6 +154,92 @@ extension Fraction {
         let sign = n.sign == .minus ? -1 : 1
         let den = Int(pow(10.0, Double(nArr[1].count)))
         return Fraction(num: sign * (post + abs(pre) * den), den: den)
+    }
+
+    /// The largest denominator `approximate` will use when converting a Double
+    /// that has no exact plain-decimal form. Convergents beyond this are
+    /// discarded in favour of the best approximation found so far.
+    static let maxApproximationDenominator = 1_000_000_000
+
+    /// Returns the closest `Fraction` to a finite `n` using the continued
+    /// fraction algorithm, bounding the denominator by
+    /// `maxApproximationDenominator`. Always returns a value — this is the
+    /// fallback path of the total `init(_ n: Double)` for finite values that
+    /// `exactDecimal` cannot represent (scientific-notation magnitudes, or
+    /// values whose exact decimal digits overflow `Int`).
+    ///
+    /// Callers must pass a finite `n`; `NaN`/`infinity` are handled earlier in
+    /// `init(_ n: Double)`. Per the golden rule, sign is taken from `n.sign`
+    /// and every `Double` comparison here is between two *variables* (never a
+    /// literal), so no comparison can be rerouted to a heterogeneous
+    /// `Fraction` operator and back into this conversion path.
+    static func approximate(_ n: Double) -> Fraction {
+        let sign = n.sign == .minus ? -1 : 1
+        let absValue = abs(n)
+
+        // Zero (including -0.0) — compare against a Double *variable*, not a literal.
+        let zero = 0.0
+        guard absValue > zero else { return Fraction.zero }
+
+        // Magnitudes at or beyond Int.max cannot seed the continued fraction
+        // without trapping in `Int(floor(x))`; saturate to the closest value an
+        // Int-backed fraction can hold. (`Double(Int.max)` rounds *up* to 2^63,
+        // so `>=` here rejects exactly the values `Int(_:)` would reject.)
+        let maxIntAsDouble = Double(Int.max)
+        guard absValue < maxIntAsDouble else {
+            return Fraction(num: sign * Int.max, den: 1)
+        }
+
+        // Whole numbers convert directly.
+        if absValue == floor(absValue) {
+            return Fraction(num: sign * Int(absValue), den: 1)
+        }
+
+        // Standard continued-fraction recurrence:
+        //   h_n = a_n * h_{n-1} + h_{n-2},  k_n = a_n * k_{n-1} + k_{n-2}
+        // seeded with h_{-1}=1, k_{-1}=0, h_0=a_0, k_0=1.
+        var x = absValue
+        var p0 = 1, q0 = 0            // h_{-1}, k_{-1}
+        let a0 = Int(floor(x))       // safe: x < Double(Int.max) guaranteed above
+        var p1 = a0, q1 = 1          // h_0, k_0
+        x = x - Double(a0)
+
+        var bestP = p1
+        var bestQ = q1
+
+        let epsilon = 1e-12
+        while x > epsilon {
+            x = 1.0 / x
+            // The next partial quotient can exceed Int range if x is enormous
+            // (a near-integer input drives the reciprocal huge); stop with the
+            // best convergent so far rather than trap in Int(floor(x)).
+            guard x < maxIntAsDouble else { break }
+            let a = Int(floor(x))
+            x = x - Double(a)
+
+            // Guard every step of the recurrence against Int overflow. On
+            // overflow we keep the best convergent found so far rather than
+            // trap — init(_ n: Double) must stay total.
+            let (ap1, o1) = a.multipliedReportingOverflow(by: p1)
+            guard !o1 else { break }
+            let (p2, o2) = ap1.addingReportingOverflow(p0)
+            guard !o2 else { break }
+            let (aq1, o3) = a.multipliedReportingOverflow(by: q1)
+            guard !o3 else { break }
+            let (q2, o4) = aq1.addingReportingOverflow(q0)
+            guard !o4 else { break }
+
+            guard q2 <= maxApproximationDenominator else { break }
+
+            p0 = p1
+            q0 = q1
+            p1 = p2
+            q1 = q2
+            bestP = p1
+            bestQ = q1
+        }
+
+        return Fraction(num: sign * bestP, den: bestQ)
     }
 }
 
@@ -343,16 +457,25 @@ public extension Int {
 }
 
 // MARK: - Double Operators
+
+// NOTE: These heterogeneous Fraction↔Double operators are the ones some Swift
+// compilers pick for plain `someDouble <op> literal` comparisons in client
+// code (the literal converts to Fraction implicitly). Now that every Double
+// conversion path is total, that reroute is merely surprising, not fatal, so
+// the operators are kept for source compatibility. Deleting them (forcing
+// explicit conversions) would make the reroute impossible but is an API break
+// with unknown downstream impact — a candidate for a future hardening pass, not
+// this fix.
 public extension Double {
     init (_ fraction: Fraction) {
         self = Double(fraction.numerator) / Double(fraction.denominator)
     }
 
-    // Exact comparison via a non-trapping parse: Fraction(Double) is
-    // string-based and traps on values that stringify in scientific notation
-    // (e.g. 1e-13). These operators can be chosen by the compiler for plain
-    // `someDouble == literal` comparisons in client code, so they must be
-    // safe for any Double. Unrepresentable doubles are never exactly equal.
+    // Equality uses the exact, non-approximating parse (`exactDecimal`): a
+    // Double with no exact plain-decimal form is never *exactly* equal to a
+    // Fraction, so unrepresentable values return false rather than comparing an
+    // approximation. (This is deliberately stricter than routing through the
+    // total, lossy `init(_:)`.)
     static func == (lhs: Fraction, rhs: Double) -> Bool {
         guard let rhsFraction = Fraction.exactDecimal(rhs) else { return false }
         return lhs == rhsFraction
@@ -434,8 +557,8 @@ public extension Float {
         self = Float(fraction.numerator) / Float(fraction.denominator)
     }
 
-    // See the Double `==` operators above: exact comparison via the
-    // non-trapping parser instead of the trapping Fraction(Double) init.
+    // See the Double `==` operators above: exact comparison via `exactDecimal`
+    // rather than the total, lossy `Fraction(_:)` init.
     static func == (lhs: Fraction, rhs: Float) -> Bool {
         guard let rhsFraction = Fraction.exactDecimal(Double(rhs)) else { return false }
         return lhs == rhsFraction
