@@ -64,20 +64,19 @@ public struct Fraction {
         self.init(num: n, den: 1)
     }
 
+    /// Creates a fraction from the plain decimal string form of `n`.
+    ///
+    /// IMPORTANT: this initializer (and `exactDecimal`) must never compare `n`
+    /// against a numeric literal (e.g. `n < 0.0`). With the heterogeneous
+    /// `< (Double, Fraction)` operators in scope, some Swift compiler versions
+    /// resolve such comparisons to the Fraction overload, which converts the
+    /// literal via this very initializer — infinite recursion and a
+    /// stack-overflow crash in release builds.
     public init(_ n: Double) {
-        let nArr = "\(n)".split(separator: ".")
-        let decimal = (pre: Int(nArr[0])!, post: Int(nArr[1])!)
-
-        let sign = n < 0.0 ? -1 : 1
-
-        guard decimal.post != 0 else {
-            self.init(num: decimal.pre, den: 1)
-            return
+        guard let fraction = Self.exactDecimal(n) else {
+            preconditionFailure("Fraction(Double) requires a plain finite decimal value, got \(n)")
         }
-
-        let den = Int(pow(10.0, Double(nArr[1].count)))
-        self.init(num: sign * (decimal.post + abs(decimal.pre) * den), den: den)
-
+        self = fraction
     }
 
     public init(_ n: Float) {
@@ -110,6 +109,23 @@ extension Fraction {
         let rhsNumerator = rhs.numerator * (denominator / rhs.denominator)
 
         return (lhsNumerator, rhsNumerator, denominator)
+    }
+
+    /// Parses the plain decimal string form of `n` (e.g. "123.456") into an
+    /// exact fraction. Returns nil for values whose description is not plain
+    /// decimal (scientific notation like "1e-13", "inf", "nan") or whose
+    /// digits overflow Int. Unlike `init(_ n: Double)`, this never traps, so
+    /// it is safe for the mixed-type `==` operators, which the compiler may
+    /// substitute into plain Double comparisons in client code.
+    static func exactDecimal(_ n: Double) -> Fraction? {
+        let nArr = "\(n)".split(separator: ".")
+        guard nArr.count == 2,
+              let pre = Int(nArr[0]),
+              let post = Int(nArr[1]) else { return nil }
+        guard post != 0 else { return Fraction(num: pre, den: 1) }
+        let sign = n.sign == .minus ? -1 : 1
+        let den = Int(pow(10.0, Double(nArr[1].count)))
+        return Fraction(num: sign * (post + abs(pre) * den), den: den)
     }
 }
 
@@ -332,11 +348,18 @@ public extension Double {
         self = Double(fraction.numerator) / Double(fraction.denominator)
     }
 
+    // Exact comparison via a non-trapping parse: Fraction(Double) is
+    // string-based and traps on values that stringify in scientific notation
+    // (e.g. 1e-13). These operators can be chosen by the compiler for plain
+    // `someDouble == literal` comparisons in client code, so they must be
+    // safe for any Double. Unrepresentable doubles are never exactly equal.
     static func == (lhs: Fraction, rhs: Double) -> Bool {
-        return lhs == Fraction(rhs)
+        guard let rhsFraction = Fraction.exactDecimal(rhs) else { return false }
+        return lhs == rhsFraction
     }
     static func == (lhs: Double, rhs: Fraction) -> Bool {
-        return Fraction(lhs) == rhs
+        guard let lhsFraction = Fraction.exactDecimal(lhs) else { return false }
+        return lhsFraction == rhs
     }
 
     static func < (lhs: Fraction, rhs: Double) -> Bool {
@@ -411,11 +434,15 @@ public extension Float {
         self = Float(fraction.numerator) / Float(fraction.denominator)
     }
 
+    // See the Double `==` operators above: exact comparison via the
+    // non-trapping parser instead of the trapping Fraction(Double) init.
     static func == (lhs: Fraction, rhs: Float) -> Bool {
-        return lhs == Fraction(rhs)
+        guard let rhsFraction = Fraction.exactDecimal(Double(rhs)) else { return false }
+        return lhs == rhsFraction
     }
     static func == (lhs: Float, rhs: Fraction) -> Bool {
-        return Fraction(lhs) == rhs
+        guard let lhsFraction = Fraction.exactDecimal(Double(lhs)) else { return false }
+        return lhsFraction == rhs
     }
 
     static func < (lhs: Fraction, rhs: Float) -> Bool {
