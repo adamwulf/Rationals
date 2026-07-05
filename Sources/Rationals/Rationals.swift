@@ -117,7 +117,7 @@ extension Fraction {
         return (numerator: numerator / divisor, denominator: denominator / divisor)
     }
 
-    static func commonDenominator(_ lhs: Fraction, _ rhs: Fraction) -> (lhsNumerator: Int, rhsNumberator: Int, denominator: Int) {
+    static func commonDenominator(_ lhs: Fraction, _ rhs: Fraction) -> (lhsNumerator: Int, rhsNumerator: Int, denominator: Int) {
         let denominator = lcm(lhs.denominator, rhs.denominator)
         let lhsNumerator = lhs.numerator * (denominator / lhs.denominator)
         let rhsNumerator = rhs.numerator * (denominator / rhs.denominator)
@@ -486,6 +486,14 @@ public extension Int {
     /// Traps for non-finite fractions (denominator 0), like `Int(Double.nan)`.
     init (_ fraction: Fraction) {
         self = fraction.numerator / fraction.denominator
+    }
+
+    /// The exact integer value of `fraction`, or nil when the fraction is not
+    /// a whole number (including infinity and NaN) — mirrors `Int(exactly:)`
+    /// for floating-point types.
+    init? (exactly fraction: Fraction) {
+        guard fraction.isWholeNumber else { return nil }
+        self = fraction.numerator
     }
 
     static func == (lhs: Fraction, rhs: Int) -> Bool {

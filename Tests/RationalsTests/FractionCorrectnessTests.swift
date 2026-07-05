@@ -156,6 +156,19 @@ final class FractionCorrectnessTests: XCTestCase {
         XCTAssertEqual(Int(Fraction.zero), 0)
     }
 
+    func testIntExactlyFromFraction() {
+        XCTAssertEqual(Int(exactly: Fraction(num: 4, den: 2)), 2)
+        XCTAssertEqual(Int(exactly: Fraction(num: -3, den: 1)), -3)
+        XCTAssertEqual(Int(exactly: Fraction.zero), 0)
+
+        // Non-whole and non-finite fractions return nil rather than
+        // truncating or trapping.
+        XCTAssertNil(Int(exactly: Fraction(num: 7, den: 2)))
+        XCTAssertNil(Int(exactly: Fraction.infinity))
+        XCTAssertNil(Int(exactly: -Fraction.infinity))
+        XCTAssertNil(Int(exactly: Fraction.NaN))
+    }
+
     // MARK: - Hashable & Codable
 
     func testHashableUsesReducedForm() {

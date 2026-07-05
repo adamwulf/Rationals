@@ -43,13 +43,13 @@ final class RationalsTests: XCTestCase {
         var result = Fraction.commonDenominator(1 / 2, 1 / 3)
 
         XCTAssertEqual(result.lhsNumerator, 3)
-        XCTAssertEqual(result.rhsNumberator, 2)
+        XCTAssertEqual(result.rhsNumerator, 2)
         XCTAssertEqual(result.denominator, 6)
 
         result = Fraction.commonDenominator(1 / 7, 1 / 13)
 
         XCTAssertEqual(result.lhsNumerator, 13)
-        XCTAssertEqual(result.rhsNumberator, 7)
+        XCTAssertEqual(result.rhsNumerator, 7)
         XCTAssertEqual(result.denominator, 91)
     }
 
