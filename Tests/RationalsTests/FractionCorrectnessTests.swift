@@ -83,6 +83,22 @@ final class FractionCorrectnessTests: XCTestCase {
         XCTAssertEqual(Fraction.NaN, Fraction.NaN)
     }
 
+    // MARK: - Exact arithmetic
+
+    /// Integer-built fractions stay on the exact path: no Double is involved,
+    /// and results are exact, reduced rationals.
+    func testExactArithmetic() {
+        XCTAssertEqual(Fraction(num: 1, den: 3) * Fraction(num: 1, den: 3), Fraction(num: 1, den: 9))
+        XCTAssertEqual(Fraction(num: 2, den: 3) * Fraction(num: 3, den: 4), Fraction(num: 1, den: 2))
+        XCTAssertEqual(Fraction(num: -1, den: 3) * Fraction(num: 1, den: 3), Fraction(num: -1, den: 9))
+
+        XCTAssertEqual(Fraction(num: 1, den: 3) + Fraction(num: 1, den: 6), Fraction(num: 1, den: 2))
+        XCTAssertEqual(Fraction(num: 1, den: 3) - Fraction(num: 1, den: 2), Fraction(num: -1, den: 6))
+
+        XCTAssertEqual(Fraction(num: 1, den: 3) / Fraction(num: 1, den: 9), Fraction(num: 3, den: 1))
+        XCTAssertEqual(Fraction(num: 5, den: 7) / Fraction(num: 5, den: 7), Fraction.one)
+    }
+
     // MARK: - Non-finite arithmetic
 
     func testInfinityArithmetic() {
