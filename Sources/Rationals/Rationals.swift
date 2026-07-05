@@ -18,7 +18,9 @@ public struct Fraction {
 
     // MARK: - Constants
 
+    @available(*, deprecated, message: "Fraction.max is an Int, not a Fraction; use Int.max directly")
     public static let max = Int.max
+    @available(*, deprecated, message: "Fraction.min is an Int, not a Fraction; use Int.min directly")
     public static let min = Int.min
     public static let zero = Fraction(num: 0, den: 1)
     public static let one = Fraction(num: 1, den: 1)
@@ -27,37 +29,22 @@ public struct Fraction {
 
     // MARK: - Initializers
 
+    /// Creates a reduced fraction from any numerator/denominator pair. The
+    /// sign always lives on the numerator: the stored denominator is never
+    /// negative. `signum` is -1, 0, or 1 matching the sign of the value
+    /// (0 for both zero and NaN).
+    ///
+    /// Note: `num == Int.min` with a negative `den` cannot be normalized
+    /// (negating `Int.min` overflows) and will trap, as it always has.
     public init(num: Int, den: Int) {
-        var result = Self.reduce(numerator: num, denominator: den)
-
-        // set the sign, also ensure that if negative, the numerator is negative and denominator is positive.
-        // if the fraction is zero, then sign is zero.
-        if result.numerator == 0 {
-            signum = 0
-        } else {
-            switch result.denominator.signum() + result.numerator.signum() {
-            case -2:
-                result.denominator = abs(result.denominator)
-                result.numerator = abs(result.numerator)
-                signum = 1
-            case -1:
-                signum = -1
-            case 0:
-                signum = -1
-                if result.numerator.signum() == 1 {
-                    result.numerator   *= -1
-                    result.denominator *= -1
-                }
-            case 1:
-                signum = 1
-            case 2:
-                signum = 1
-            default: break
-            }
+        var (n, d) = Self.reduce(numerator: num, denominator: den)
+        if d < 0 {
+            n = -n
+            d = -d
         }
-
-        numerator = result.numerator
-        denominator = result.denominator
+        numerator = n
+        denominator = d
+        signum = n.signum()
     }
 
     public init(_ n: Int) {
@@ -130,7 +117,7 @@ extension Fraction {
         return (numerator: numerator / divisor, denominator: denominator / divisor)
     }
 
-    static func commonDenominator(_ lhs: Fraction, _ rhs: Fraction) -> (lhsNumerator: Int, rhsNumberator: Int, denominator: Int) {
+    static func commonDenominator(_ lhs: Fraction, _ rhs: Fraction) -> (lhsNumerator: Int, rhsNumerator: Int, denominator: Int) {
         let denominator = lcm(lhs.denominator, rhs.denominator)
         let lhsNumerator = lhs.numerator * (denominator / lhs.denominator)
         let rhsNumerator = rhs.numerator * (denominator / rhs.denominator)
@@ -151,9 +138,18 @@ extension Fraction {
               let pre = Int(nArr[0]),
               let post = Int(nArr[1]) else { return nil }
         guard post != 0 else { return Fraction(num: pre, den: 1) }
+        // 10^19 overflows Int64, and the numerator math below can overflow
+        // even before that — every step is checked so long decimal tails
+        // fall through to nil (→ the approximation path) instead of trapping.
+        guard nArr[1].count <= 18 else { return nil }
+        var den = 1
+        for _ in 0..<nArr[1].count { den *= 10 }
+        let (scaled, overflow1) = abs(pre).multipliedReportingOverflow(by: den)
+        guard !overflow1 else { return nil }
+        let (num, overflow2) = scaled.addingReportingOverflow(post)
+        guard !overflow2 else { return nil }
         let sign = n.sign == .minus ? -1 : 1
-        let den = Int(pow(10.0, Double(nArr[1].count)))
-        return Fraction(num: sign * (post + abs(pre) * den), den: den)
+        return Fraction(num: sign * num, den: den)
     }
 
     /// The largest denominator `approximate` will use when converting a Double
@@ -275,15 +271,22 @@ public extension Fraction {
 // MARK: - CustomStringConvertible
 extension Fraction: CustomStringConvertible {
     public var description: String {
-
-        guard denominator != 1 && numerator != 0 else { return "\(numerator)" }
-
+        guard isFinite else {
+            if isNaN { return "nan" }
+            return signum < 0 ? "-inf" : "inf"
+        }
+        // Finite fractions are always reduced, so whole numbers (including
+        // zero) are exactly the ones with denominator 1.
+        guard denominator != 1 else { return "\(numerator)" }
         return "\(numerator)/\(denominator)"
     }
 }
 
 // MARK: - Equatable
 extension Fraction: Equatable {
+    /// Structural equality on the reduced form. Unlike IEEE floating point,
+    /// `Fraction.NaN == Fraction.NaN` is `true` — this is deliberate so that
+    /// `Equatable`/`Hashable` behave sanely in collections.
     public static func == (lhs: Fraction, rhs: Fraction) -> Bool {
         return lhs.numerator == rhs.numerator && lhs.denominator == rhs.denominator
     }
@@ -291,8 +294,66 @@ extension Fraction: Equatable {
 
 // MARK: - Comparable
 extension Fraction: Comparable {
+    /// Exact comparison by cross-multiplication in 128 bits — never loses
+    /// precision to an intermediate `Double`, never overflows.
+    ///
+    /// Ordering of non-finite values: `-infinity` is less than every finite
+    /// value and `+infinity`; `NaN` is unordered (`<` involving NaN is always
+    /// `false`, though `NaN == NaN` — see `==`).
     public static func < (lhs: Fraction, rhs: Fraction) -> Bool {
-        return Double(lhs.numerator) / Double(lhs.denominator) < Double(rhs.numerator) / Double(rhs.denominator)
+        guard !lhs.isNaN, !rhs.isNaN else { return false }
+        if lhs.isInfinite || rhs.isInfinite {
+            if lhs.isInfinite && rhs.isInfinite { return lhs.signum < rhs.signum }
+            return lhs.isInfinite ? lhs.signum < 0 : rhs.signum > 0
+        }
+        // Denominators are always positive for finite values, so the cross
+        // products keep the operands' signs.
+        let left = lhs.numerator.multipliedFullWidth(by: rhs.denominator)
+        let right = rhs.numerator.multipliedFullWidth(by: lhs.denominator)
+        return left.high < right.high || (left.high == right.high && left.low < right.low)
+    }
+
+    // Comparable's default >, <=, >= are derived as negations of < and would
+    // return true for NaN operands; implement all four so NaN stays unordered
+    // (like Double does).
+    public static func > (lhs: Fraction, rhs: Fraction) -> Bool {
+        return rhs < lhs
+    }
+    public static func <= (lhs: Fraction, rhs: Fraction) -> Bool {
+        return lhs < rhs || lhs == rhs
+    }
+    public static func >= (lhs: Fraction, rhs: Fraction) -> Bool {
+        return rhs < lhs || lhs == rhs
+    }
+}
+
+// MARK: - Hashable
+extension Fraction: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(numerator)
+        hasher.combine(denominator)
+    }
+}
+
+// MARK: - Codable
+extension Fraction: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case numerator
+        case denominator
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Route through init(num:den:) so decoded values are always reduced
+        // and sign-normalized, whatever the payload contains.
+        self.init(num: try container.decode(Int.self, forKey: .numerator),
+                  den: try container.decode(Int.self, forKey: .denominator))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(numerator, forKey: .numerator)
+        try container.encode(denominator, forKey: .denominator)
     }
 }
 
@@ -322,12 +383,29 @@ extension Fraction: Strideable {
         return other.advanced(by: -self)
     }
 
+    /// Total addition: exact when the sum fits in `Int`, otherwise the
+    /// closest representable fraction (via the total `init(_ n: Double)`).
+    /// Non-finite operands follow IEEE rules: NaN propagates, and
+    /// opposite-signed infinities sum to NaN.
     public func advanced(by n: Fraction) -> Fraction {
-        guard isFinite || n.isFinite else { return Fraction.NaN }
-        guard n.isFinite else { return n }
-        guard isFinite else { return self }
-        let (selfNumerator, nNumerator, commonDenominator) = Fraction.commonDenominator(self, n)
-        return Fraction(num: selfNumerator + nNumerator, den: commonDenominator)
+        guard !isNaN, !n.isNaN else { return Fraction.NaN }
+        if isInfinite || n.isInfinite {
+            if isInfinite && n.isInfinite {
+                return signum == n.signum ? self : Fraction.NaN
+            }
+            return isInfinite ? self : n
+        }
+        let g = Fraction.gcd(denominator, n.denominator)
+        let (m1, o1) = numerator.multipliedReportingOverflow(by: n.denominator / g)
+        let (m2, o2) = n.numerator.multipliedReportingOverflow(by: denominator / g)
+        let (den, o3) = denominator.multipliedReportingOverflow(by: n.denominator / g)
+        if !o1, !o2, !o3 {
+            let (sum, o4) = m1.addingReportingOverflow(m2)
+            if !o4 {
+                return Fraction(num: sum, den: den)
+            }
+        }
+        return Fraction(Double(self) + Double(n))
     }
 }
 
@@ -354,9 +432,22 @@ extension Fraction: Numeric {
         return lhs.advanced(by: -rhs)
     }
 
+    /// Total multiplication: exact when the product fits in `Int` (after
+    /// cross-reducing to keep intermediates small), otherwise the closest
+    /// representable fraction (via the total `init(_ n: Double)`).
     public static func * (lhs: Fraction, rhs: Fraction) -> Fraction {
-        return Fraction(num: lhs.numerator * rhs.numerator,
-                        den: lhs.denominator * rhs.denominator)
+        guard !lhs.isNaN, !rhs.isNaN else { return Fraction.NaN }
+        if lhs.isInfinite || rhs.isInfinite {
+            // infinity * zero is NaN; otherwise infinity with the combined sign.
+            let sign = lhs.signum * rhs.signum
+            return sign == 0 ? Fraction.NaN : Fraction(num: sign, den: 0)
+        }
+        let g1 = Swift.max(abs(gcd(lhs.numerator, rhs.denominator)), 1)
+        let g2 = Swift.max(abs(gcd(rhs.numerator, lhs.denominator)), 1)
+        let (num, o1) = (lhs.numerator / g1).multipliedReportingOverflow(by: rhs.numerator / g2)
+        let (den, o2) = (lhs.denominator / g2).multipliedReportingOverflow(by: rhs.denominator / g1)
+        guard !o1, !o2 else { return Fraction(Double(lhs) * Double(rhs)) }
+        return Fraction(num: num, den: den)
     }
 
     public static func / (lhs: Fraction, rhs: Fraction) -> Fraction {
@@ -387,59 +478,68 @@ extension Fraction: SignedNumeric {
 }
 
 // MARK: - Int Operators
+
+// Every mixed Fraction↔Int operation delegates to the exact, total
+// Fraction↔Fraction implementation — Int converts losslessly to Fraction.
 public extension Int {
+    /// Truncated division of the fraction, like `Int(3.9) == 3`.
+    /// Traps for non-finite fractions (denominator 0), like `Int(Double.nan)`.
     init (_ fraction: Fraction) {
         self = fraction.numerator / fraction.denominator
     }
 
+    /// The exact integer value of `fraction`, or nil when the fraction is not
+    /// a whole number (including infinity and NaN) — mirrors `Int(exactly:)`
+    /// for floating-point types.
+    init? (exactly fraction: Fraction) {
+        guard fraction.isWholeNumber else { return nil }
+        self = fraction.numerator
+    }
+
     static func == (lhs: Fraction, rhs: Int) -> Bool {
-        return (lhs.numerator == 0 && rhs == 0) || (lhs.denominator == 1 && lhs.numerator == rhs)
+        return lhs == Fraction(rhs)
     }
     static func == (lhs: Int, rhs: Fraction) -> Bool {
-        return (rhs.numerator == 0 && lhs == 0) || (rhs.denominator == 1 && rhs.numerator == lhs)
+        return Fraction(lhs) == rhs
     }
 
     static func < (lhs: Fraction, rhs: Int) -> Bool {
-        return Double(lhs) < Double(rhs)
+        return lhs < Fraction(rhs)
     }
     static func > (lhs: Fraction, rhs: Int) -> Bool {
-        return !(lhs <= rhs)
+        return Fraction(rhs) < lhs
     }
     static func <= (lhs: Fraction, rhs: Int) -> Bool {
         return lhs < rhs || lhs == rhs
     }
     static func >= (lhs: Fraction, rhs: Int) -> Bool {
-        return !(lhs < rhs)
+        return lhs > rhs || lhs == rhs
     }
 
     static func < (lhs: Int, rhs: Fraction) -> Bool {
-        return Double(lhs) < Double(rhs)
+        return Fraction(lhs) < rhs
     }
     static func > (lhs: Int, rhs: Fraction) -> Bool {
-        return !(lhs <= rhs)
+        return rhs < Fraction(lhs)
     }
     static func <= (lhs: Int, rhs: Fraction) -> Bool {
         return lhs < rhs || lhs == rhs
     }
     static func >= (lhs: Int, rhs: Fraction) -> Bool {
-        return !(lhs < rhs)
+        return lhs > rhs || lhs == rhs
     }
 
     static func + (lhs: Fraction, rhs: Int) -> Fraction {
-        return Fraction(num: lhs.numerator + (rhs * lhs.denominator),
-                        den: lhs.denominator)
+        return lhs + Fraction(rhs)
     }
     static func - (lhs: Fraction, rhs: Int) -> Fraction {
-        return Fraction(num: lhs.numerator - rhs * lhs.denominator,
-                        den: lhs.denominator)
+        return lhs - Fraction(rhs)
     }
     static func * (lhs: Fraction, rhs: Int) -> Fraction {
-        return Fraction(num: lhs.numerator * rhs,
-                        den: lhs.denominator)
+        return lhs * Fraction(rhs)
     }
     static func / (lhs: Fraction, rhs: Int) -> Fraction {
-        return Fraction(num: lhs.numerator,
-                        den: lhs.denominator * rhs)
+        return lhs / Fraction(rhs)
     }
 
     static func += (lhs: inout Fraction, rhs: Int) {
@@ -485,30 +585,33 @@ public extension Double {
         return lhsFraction == rhs
     }
 
+    // Ordered comparisons happen in Double space (the fraction converts,
+    // possibly with rounding), so NaN on either side compares false for all
+    // of <, >, <=, >= — matching IEEE semantics.
     static func < (lhs: Fraction, rhs: Double) -> Bool {
         return Double(lhs) < rhs
     }
     static func > (lhs: Fraction, rhs: Double) -> Bool {
-        return !(lhs <= rhs)
+        return Double(lhs) > rhs
     }
     static func <= (lhs: Fraction, rhs: Double) -> Bool {
-        return lhs < rhs || lhs == rhs
+        return Double(lhs) <= rhs
     }
     static func >= (lhs: Fraction, rhs: Double) -> Bool {
-        return !(lhs < rhs)
+        return Double(lhs) >= rhs
     }
 
     static func < (lhs: Double, rhs: Fraction) -> Bool {
         return lhs < Double(rhs)
     }
     static func > (lhs: Double, rhs: Fraction) -> Bool {
-        return !(lhs <= rhs)
+        return lhs > Double(rhs)
     }
     static func <= (lhs: Double, rhs: Fraction) -> Bool {
-        return lhs < rhs || lhs == rhs
+        return lhs <= Double(rhs)
     }
     static func >= (lhs: Double, rhs: Fraction) -> Bool {
-        return !(lhs < rhs)
+        return lhs >= Double(rhs)
     }
 
     static func += (lhs: inout Double, rhs: Fraction) {
@@ -568,30 +671,32 @@ public extension Float {
         return lhsFraction == rhs
     }
 
+    // See the Double comparison note: ordered comparisons happen in Float
+    // space, giving IEEE all-false semantics when NaN is involved.
     static func < (lhs: Fraction, rhs: Float) -> Bool {
         return Float(lhs) < rhs
     }
     static func > (lhs: Fraction, rhs: Float) -> Bool {
-        return !(lhs <= rhs)
+        return Float(lhs) > rhs
     }
     static func <= (lhs: Fraction, rhs: Float) -> Bool {
-        return lhs < rhs || lhs == rhs
+        return Float(lhs) <= rhs
     }
     static func >= (lhs: Fraction, rhs: Float) -> Bool {
-        return !(lhs < rhs)
+        return Float(lhs) >= rhs
     }
 
     static func < (lhs: Float, rhs: Fraction) -> Bool {
         return lhs < Float(rhs)
     }
     static func > (lhs: Float, rhs: Fraction) -> Bool {
-        return !(lhs <= rhs)
+        return lhs > Float(rhs)
     }
     static func <= (lhs: Float, rhs: Fraction) -> Bool {
-        return lhs < rhs || lhs == rhs
+        return lhs <= Float(rhs)
     }
     static func >= (lhs: Float, rhs: Fraction) -> Bool {
-        return !(lhs < rhs)
+        return lhs >= Float(rhs)
     }
 
     static func + (lhs: Fraction, rhs: Float) -> Fraction {

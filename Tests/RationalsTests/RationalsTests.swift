@@ -43,13 +43,13 @@ final class RationalsTests: XCTestCase {
         var result = Fraction.commonDenominator(1 / 2, 1 / 3)
 
         XCTAssertEqual(result.lhsNumerator, 3)
-        XCTAssertEqual(result.rhsNumberator, 2)
+        XCTAssertEqual(result.rhsNumerator, 2)
         XCTAssertEqual(result.denominator, 6)
 
         result = Fraction.commonDenominator(1 / 7, 1 / 13)
 
         XCTAssertEqual(result.lhsNumerator, 13)
-        XCTAssertEqual(result.rhsNumberator, 7)
+        XCTAssertEqual(result.rhsNumerator, 7)
         XCTAssertEqual(result.denominator, 91)
     }
 
@@ -197,13 +197,24 @@ final class RationalsTests: XCTestCase {
     }
 
     func testOverflow() {
+        // Multiplying two double-derived fractions overflows the exact Int
+        // path; the result must degrade to a close approximation, not trap.
         let third: Fraction = Fraction(1.0 / 3.0)
-        let thirteenth: Fraction = Fraction(7.0 / 13.0)
+        let ninth = third * third
+        XCTAssertTrue(ninth.isFinite)
+        XCTAssertEqual(Double(ninth), 1.0 / 9.0, accuracy: 1e-9)
 
-        XCTAssertEqual(third, 3333333333333333 / 10000000000000000)
-        XCTAssertEqual(thirteenth, 673076923076923 / 1250000000000000)
-        XCTAssertEqual(third + thirteenth, 8717948717948717 / 10000000000000000)
-        XCTAssertEqual(third - thirteenth, -2051282051282051 / 10000000000000000)
+        // Addition whose numerators overflow also degrades instead of trapping.
+        let big = Fraction(num: Int.max, den: 1)
+        let doubled = big + big
+        XCTAssertTrue(doubled.isFinite)
+        XCTAssertEqual(doubled, Fraction(num: Int.max, den: 1))
+
+        // Same for subtraction toward the negative extreme.
+        let negBig = Fraction(num: -Int.max, den: 1)
+        let negDoubled = negBig - big
+        XCTAssertTrue(negDoubled.isFinite)
+        XCTAssertEqual(negDoubled, Fraction(num: -Int.max, den: 1))
     }
 
     func testNegativeWholeNumberFromDouble() {
